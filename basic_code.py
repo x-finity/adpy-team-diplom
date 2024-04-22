@@ -45,6 +45,6 @@ class VkBot:
 
 
 if __name__ == "__main__":
-    token = 'vk1.a.GANkgLMit6kQxEW8nCRllSQrcaAGu6jyxGbRqhOG__KryGP84fROOcGu6k-3UfRWpSF3hBXaVi08ur8Ouce8LWUZHuO6kPzN9CL4UaJ6bDgyXdGz88Ul_FZKon_nDaraPxDT3iC5rCsz93gPyiQ_MZBTIrNfDC75fAMC_-h5I88JzDEnVQ8ZDKeJGrXYZM-pfUOHnVbcWlfavX85EkiA7A'
+    token = ...
     bot = VkBot(token)
     bot.start()
