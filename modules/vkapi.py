@@ -3,14 +3,12 @@ from datetime import date
 
 
 def get_age(bdate):
-    print(bdate)
     if bdate.count('.') == 2:
         bdate = date(*[int(x) for x in bdate.split('.')[::-1]])
     elif bdate.count('.') == 1:
         bdate = date(*[int(x) for x in bdate.split('.')[::-1]],1)
     else:
         bdate = date(int(bdate), 1, 1)
-    print(bdate)
     today = date.today()
     age = today.year - bdate.year
     if today.month < bdate.month or (today.month == bdate.month and today.day < bdate.day):
