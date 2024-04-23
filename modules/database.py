@@ -86,6 +86,12 @@ def push_user_to_db(session, token, user_id):
             session.commit()
 
 
+def del_user_from_db(session, user_id):
+    if session.query(User).filter(User.vk_user_id == user_id).first():
+        session.query(User).filter(User.vk_user_id == user_id).delete()
+        session.commit()
+
+
 if __name__ == "__main__":
     config = load_config()
     # print(config)
@@ -97,3 +103,4 @@ if __name__ == "__main__":
     push_user_to_db(session , config['VK_TOKEN'], 1)
     push_user_to_db(session , config['VK_TOKEN'], 86301318)
     push_user_to_db(session , config['VK_TOKEN'], 19346584)
+    del_user_from_db(session, 1)
