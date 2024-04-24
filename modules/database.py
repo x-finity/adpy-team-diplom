@@ -11,7 +11,8 @@ def load_config(filename=None):
         return json.load(open(filename))
     else:
         config = {key: value for key, value in dict(os.environ).items() if key.startswith('PG_')}
-        config.update({'VK_TOKEN': os.environ.get('VK_TOKEN')})
+        config.update({'VK_GROUP_TOKEN': os.environ.get('VK_GROUP_TOKEN')})
+        config.update({'VK_USER_TOKEN': os.environ.get('VK_USER_TOKEN')})
         return config
 
 
@@ -79,7 +80,7 @@ class Photo(Base):
 
 
 def push_user_to_db(session, token, user_id):
-    user_info = vkapi.VkUser(token).get_user_info(user_id)
+    user_info = vkapi.VkGroupAPI(token).get_user_info(user_id)
     if user_info:
         if not session.query(User).filter(User.vk_user_id == user_id).first():
             session.add(User(vk_user_id=user_id, **user_info))
@@ -92,6 +93,17 @@ def del_user_from_db(session, user_id):
         session.commit()
 
 
+def object_as_dict(obj):
+    return {
+        c.key: getattr(obj, c.key)
+        for c in sq.inspect(obj).mapper.column_attrs
+    }
+
+
+def get_user_from_db(session, user_id):
+    return object_as_dict(session.query(User).filter(User.vk_user_id == user_id).first())
+
+
 if __name__ == "__main__":
     config = load_config()
     # print(config)
@@ -101,6 +113,6 @@ if __name__ == "__main__":
     Session = sessionmaker(bind=engine)
     session = Session()
     push_user_to_db(session , config['VK_TOKEN'], 1)
-    push_user_to_db(session , config['VK_TOKEN'], 86301318)
-    push_user_to_db(session , config['VK_TOKEN'], 19346584)
+    push_user_to_db(session , config['VK_TOKEN'], 2)
     del_user_from_db(session, 1)
+    print(get_user_from_db(session, 86301318))
