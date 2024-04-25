@@ -140,21 +140,11 @@ def modify_matching_to_favorite(session, person_id, offer_id, is_favorite=True):
         session.commit()
 
 
-if __name__ == "__main__":
-    config = load_config()
-    # print(config)
-    DSN = dsn(config)
-    engine = sq.create_engine(DSN)
-    create_db(engine)
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    add_user_to_db(session , config['VK_USER_TOKEN'], 1)
-    add_user_to_db(session , config['VK_USER_TOKEN'], 126875243)
-    # del_user_from_db(session, 1)
-    add_matching_to_db(session, 1, 126875243)
+def is_blocked(session, person_id, offer_id):
+    query = session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).first()
+    if query:
+        return query.is_blocked
 
-    print(get_user_from_db(session, 86301318))
-    print(get_user_from_db(session, 126875243))
-    print(get_user_from_db(session, 1))
-    modify_matching_to_blacklist(session, 1, 126875243)
-    modify_matching_to_favorite(session, 1, 126875243)
+
+if __name__ == "__main__":
+    pass
