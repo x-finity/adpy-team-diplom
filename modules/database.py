@@ -48,6 +48,8 @@ class User(Base):
     age = sq.Column(sq.Integer, nullable=False)
     city = sq.Column(sq.String(length=40), nullable=False)
 
+    photo = relationship('Photo', back_populates='user', cascade="all,delete")
+
     def __str__(self):
         return f'{self.vk_user_id, self.first_name, self.sex, self.age, self.city}'
 
@@ -61,8 +63,8 @@ class UserOffer(Base):
     is_favorite = sq.Column(sq.Boolean, unique=False)
     is_blocked = sq.Column(sq.Boolean, unique=False)
 
-    person = relationship('User', backref='person', foreign_keys=[person_id])
-    offer = relationship('User', backref='offer', foreign_keys=[offer_id])
+    person = relationship('User', backref='person', foreign_keys=[person_id], cascade="all,delete")
+    offer = relationship('User', backref='offer', foreign_keys=[offer_id], cascade="all,delete")
 
     def __str__(self):
         return f'{self.user_offer_id, self.user_id1, self.user_id2, self.is_favorite, self.is_blocked}'
@@ -73,21 +75,26 @@ class Photo(Base):
 
     photo_id = sq.Column(sq.Integer, primary_key=True)
     user_id = sq.Column(sq.Integer, sq.ForeignKey('user.vk_user_id'), nullable=False)
-    url = sq.Column(sq.String(length=200), unique=False)
+    url = sq.Column(sq.String(length=300), unique=False)
+
+    user = relationship('User', back_populates='photo', cascade="all,delete")
 
     def __str__(self):
         return f'{self.photo_id, self.user_id, self.url}'
 
 
 def push_user_to_db(session, token, user_id):
-    user_info = vkapi.VkGroupAPI(token).get_user_info(user_id)
+    user_info = vkapi.VkUserAPI(token).get_user_info(user_id)
     if user_info:
         if not session.query(User).filter(User.vk_user_id == user_id).first():
             session.add(User(vk_user_id=user_id, **user_info))
+            for photo in vkapi.VkUserAPI(token).get_user_photos(user_id):
+                session.add(Photo(user_id=user_id, url=photo))
             session.commit()
 
 
 def del_user_from_db(session, user_id):
+    session.query(Photo).filter(Photo.user_id == user_id).delete()
     if session.query(User).filter(User.vk_user_id == user_id).first():
         session.query(User).filter(User.vk_user_id == user_id).delete()
         session.commit()
@@ -101,7 +108,11 @@ def object_as_dict(obj):
 
 
 def get_user_from_db(session, user_id):
-    return object_as_dict(session.query(User).filter(User.vk_user_id == user_id).first())
+    if session.query(User).filter(User.vk_user_id == user_id).first():
+        user_info = object_as_dict(session.query(User).filter(User.vk_user_id == user_id).first())
+        photos = session.query(Photo).filter(Photo.user_id == user_id).all()
+        user_info['photos'] = [photo.url for photo in photos]
+        return user_info
 
 
 if __name__ == "__main__":
@@ -112,7 +123,8 @@ if __name__ == "__main__":
     create_db(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
-    push_user_to_db(session , config['VK_TOKEN'], 1)
-    push_user_to_db(session , config['VK_TOKEN'], 2)
+    push_user_to_db(session , config['VK_USER_TOKEN'], 1)
+    push_user_to_db(session , config['VK_USER_TOKEN'], 126875243)
     del_user_from_db(session, 1)
     print(get_user_from_db(session, 86301318))
+    print(get_user_from_db(session, 126875243))
