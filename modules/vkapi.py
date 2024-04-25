@@ -42,7 +42,7 @@ class VkUserAPI:
                     age = None
                 first_name = user_info['first_name']
                 last_name = user_info['last_name']
-                sex = True if user_info['sex'] == 1 else False if user_info['sex'] == 2 else None
+                sex = user_info['sex']
                 city = user_info.get('city', {}).get('title', 'Не указано')
                 return {'first_name': first_name, 'last_name': last_name, 'sex': sex, 'city': city, 'age': age}
             else:
@@ -90,6 +90,6 @@ if __name__ == "__main__":
 
     vk_user = VkUserAPI(load_config()['VK_USER_TOKEN'])
     user_id = vk_user.get_user_id(input("Введите введите ID пользователя: ") or 126875243)
-    # print(vk_user.get_user_info(user_id))
+    print(vk_user.get_user_info(user_id))
     # print(vk_user.get_search_result('Москва', 30, 1))
     pprint(vk_user.get_user_photos(user_id))
