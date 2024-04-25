@@ -44,8 +44,8 @@ class User(Base):
     vk_user_id = sq.Column(sq.Integer, primary_key=True)
     first_name = sq.Column(sq.String(length=40), nullable=False)
     last_name = sq.Column(sq.String(length=40), nullable=False)
-    sex = sq.Column(sq.Boolean, unique=False)
-    age = sq.Column(sq.Integer, nullable=False)
+    sex = sq.Column(sq.SmallInteger, unique=False)
+    age = sq.Column(sq.SmallInteger, nullable=False)
     city = sq.Column(sq.String(length=40), nullable=False)
 
     photo = relationship('Photo', back_populates='user', cascade="all,delete")
@@ -101,12 +101,13 @@ def del_user_from_db(session, user_id):
 
 
 def add_matching_to_db(session, user_id1, user_id2, is_favorite=False, is_blocked=False):
-    session.add(UserOffer(user_id1=user_id1, user_id2=user_id2, is_favorite=is_favorite, is_blocked=is_blocked))
-    session.commit()
+    if not session.query(UserOffer).filter(UserOffer.person_id == user_id1, UserOffer.offer_id == user_id2).first():
+        session.add(UserOffer(person_id=user_id1, offer_id=user_id2, is_favorite=is_favorite, is_blocked=is_blocked))
+        session.commit()
 
 
 def del_matching_from_db(session, user_id1, user_id2):
-    session.query(UserOffer).filter(UserOffer.user_id1 == user_id1, UserOffer.user_id2 == user_id2).delete()
+    session.query(UserOffer).filter(UserOffer.person_id == user_id1, UserOffer.offer_id == user_id2).delete()
     session.commit()
 
 
@@ -125,6 +126,20 @@ def get_user_from_db(session, user_id):
         return user_info
 
 
+def modify_matching_to_blacklist(session, person_id, offer_id, is_blocked=True):
+    if session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).first():
+        (session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).
+         update({"is_blocked": is_blocked}))
+        session.commit()
+
+
+def modify_matching_to_favorite(session, person_id, offer_id, is_favorite=True):
+    if session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).first():
+        (session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).
+         update({"is_favorite": is_favorite}))
+        session.commit()
+
+
 if __name__ == "__main__":
     config = load_config()
     # print(config)
@@ -135,6 +150,11 @@ if __name__ == "__main__":
     session = Session()
     add_user_to_db(session , config['VK_USER_TOKEN'], 1)
     add_user_to_db(session , config['VK_USER_TOKEN'], 126875243)
-    del_user_from_db(session, 1)
+    # del_user_from_db(session, 1)
+    add_matching_to_db(session, 1, 126875243)
+
     print(get_user_from_db(session, 86301318))
     print(get_user_from_db(session, 126875243))
+    print(get_user_from_db(session, 1))
+    modify_matching_to_blacklist(session, 1, 126875243)
+    modify_matching_to_favorite(session, 1, 126875243)
