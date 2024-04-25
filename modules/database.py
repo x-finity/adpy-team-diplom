@@ -83,7 +83,7 @@ class Photo(Base):
         return f'{self.photo_id, self.user_id, self.url}'
 
 
-def push_user_to_db(session, token, user_id):
+def add_user_to_db(session, token, user_id):
     user_info = vkapi.VkUserAPI(token).get_user_info(user_id)
     if user_info:
         if not session.query(User).filter(User.vk_user_id == user_id).first():
@@ -98,6 +98,16 @@ def del_user_from_db(session, user_id):
     if session.query(User).filter(User.vk_user_id == user_id).first():
         session.query(User).filter(User.vk_user_id == user_id).delete()
         session.commit()
+
+
+def add_matching_to_db(session, user_id1, user_id2, is_favorite=False, is_blocked=False):
+    session.add(UserOffer(user_id1=user_id1, user_id2=user_id2, is_favorite=is_favorite, is_blocked=is_blocked))
+    session.commit()
+
+
+def del_matching_from_db(session, user_id1, user_id2):
+    session.query(UserOffer).filter(UserOffer.user_id1 == user_id1, UserOffer.user_id2 == user_id2).delete()
+    session.commit()
 
 
 def object_as_dict(obj):
@@ -123,8 +133,8 @@ if __name__ == "__main__":
     create_db(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
-    push_user_to_db(session , config['VK_USER_TOKEN'], 1)
-    push_user_to_db(session , config['VK_USER_TOKEN'], 126875243)
+    add_user_to_db(session , config['VK_USER_TOKEN'], 1)
+    add_user_to_db(session , config['VK_USER_TOKEN'], 126875243)
     del_user_from_db(session, 1)
     print(get_user_from_db(session, 86301318))
     print(get_user_from_db(session, 126875243))
