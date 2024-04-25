@@ -68,8 +68,12 @@ class VkUserAPI:
         user = self.vk.users.get(user_ids=user_name)
         return user[0].get('id')
 
-    def get_search_result(self, city, age, sex, age_delta=5):
-        return self.vk.users.search(count=100, hometown=city, age_from=age - age_delta, age_to=age + age_delta, sex=sex)
+    def get_search_result(self, city, age, sex, age_delta=5, offset=0, count=100):
+        result = self.vk.users.search(count=count, offset=offset,
+                                      hometown=city, age_from=age - age_delta, age_to=age + age_delta, sex=sex)
+        for user in result['items']:
+            user_id = user['id']
+            yield user_id
 
 
 if __name__ == "__main__":
@@ -89,7 +93,7 @@ if __name__ == "__main__":
     #     print("Не удалось получить информацию о пользователе.")
 
     vk_user = VkUserAPI(load_config()['VK_USER_TOKEN'])
-    user_id = vk_user.get_user_id(input("Введите введите ID пользователя: ") or 126875243)
-    print(vk_user.get_user_info(user_id))
-    # print(vk_user.get_search_result('Москва', 30, 1))
-    pprint(vk_user.get_user_photos(user_id))
+    # user_id = vk_user.get_user_id(input("Введите введите ID пользователя: ") or 126875243)
+    # print(vk_user.get_user_info(user_id))
+    pprint(list(vk_user.get_search_result('Москва', 30, 1)))
+    # pprint(vk_user.get_user_photos(user_id))

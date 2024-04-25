@@ -25,3 +25,6 @@ def get_token():
 def download_json(info_photos):
     with open('file1.json', 'w') as json_file:
         json.dump(info_photos, json_file)
+
+if __name__ == '__main__':
+    print(get_token())
