@@ -68,13 +68,17 @@ class VkUserAPI:
         user = self.vk.users.get(user_ids=user_name)
         return user[0].get('id')
 
-    def get_search_result(self, city, age, sex, age_delta=5, offset=0, count=10, has_photo=True, max_count=None):
+    def get_search_result(self, city, age, sex, age_delta=5, offset=0, count=10, user_id=None, has_photo=True, max_count=None):
+        from modules.database import is_blocked
+        from basic_code import session
         while True:
             result = self.vk.users.search(count=count, offset=offset,
                                           hometown=city, has_photo=has_photo, age_from=age - age_delta,
                                           age_to=age + age_delta, sex=sex)
             for user in result['items']:
                 if user.get('id') is not None:
+                    if is_blocked(session, user_id, user['id']):
+                        continue
                     if max_count is not None and offset >= max_count:
                         return
                     yield user['id']
@@ -82,28 +86,4 @@ class VkUserAPI:
 
 
 if __name__ == "__main__":
-    import requests
-    from database import load_config
-    token = load_config()['VK_GROUP_TOKEN']
-    # print("Токен VK:", token)
-    # user_id = input("Введите введите ID пользователя: ") or 126875243
-    # vk_group = VkGroupAPI(token)
-    # user_info = vk_group.get_user_info(user_id)
-    # if user_info:
-    #     print("Имя:", user_info['first_name'])
-    #     print("Фамилия:", user_info['last_name'])
-    #     print("Пол:", "Женский" if user_info['sex'] == 1 else "Мужской")
-    #     print("Город:", user_info['city'])
-    #     print("Возраст:", user_info['age'])
-    # else:
-    #     print("Не удалось получить информацию о пользователе.")
-
-    vk_user = VkUserAPI(load_config()['VK_USER_TOKEN'])
-    # user_id = vk_user.get_user_id(input("Введите введите ID пользователя: ") or 126875243)
-    # print(vk_user.get_user_info(user_id))
-    # for user_id in vk_user.get_search_result('Москва', 30, 1, count=1):
-    #     print(vk_user.get_user_info(user_id))
-    #     for n, photo in enumerate(vk_user.get_user_photos(user_id)):
-    #         with open(f'.images/{user_id}_{n}.jpg', 'wb') as f:
-    #             f.write(requests.get(photo).content)
-    # pprint(vk_user.get_user_photos(user_id))
+    pass

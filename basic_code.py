@@ -1,6 +1,9 @@
 import vk_api
 import json
 from vk_api.longpoll import VkLongPoll, VkEventType
+from modules.database import load_config, create_session
+config = load_config()
+session = create_session(config)
 
 
 class VkBot:

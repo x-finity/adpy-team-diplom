@@ -2,7 +2,6 @@ import sqlalchemy as sq
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 import sys
 import json
-import modules.vkapi as vkapi
 import os
 
 def load_config(filename=None):
@@ -16,14 +15,14 @@ def load_config(filename=None):
         return config
 
 
-def dsn(config):
+def create_dsn(config):
     """Create DSN from config"""
     db_config = {key[3:].lower(): value for key, value in config.items() if key.startswith('PG_')}
     db_config.setdefault('port', 5432)
     db_config.setdefault('host', 'localhost')
     db_config.setdefault('username', 'postgres')
     db_config.setdefault('drivername', 'postgresql')
-    db_config.setdefault('password', '')
+    db_config.setdefault('password', 'postgres')
     return sq.URL.create(**db_config)
 
 
@@ -33,6 +32,15 @@ def create_db(engine):
         Base.metadata.create_all(engine)
     except sq.exc.OperationalError as e:
         sys.exit(f"Error: Cannot connect to database\n{e}")
+
+
+def create_session(config):
+    dsn = create_dsn(config)
+    engine = sq.create_engine(dsn)
+    create_db(engine)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    return session
 
 
 Base = declarative_base()
@@ -84,6 +92,7 @@ class Photo(Base):
 
 
 def add_user_to_db(session, token, user_id):
+    import modules.vkapi as vkapi
     user_info = vkapi.VkUserAPI(token).get_user_info(user_id)
     if user_info:
         if not session.query(User).filter(User.vk_user_id == user_id).first():
