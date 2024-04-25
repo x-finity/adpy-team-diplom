@@ -1,5 +1,6 @@
 import vk_api
 from datetime import date
+from pprint import pprint
 
 
 def get_age(bdate):
@@ -52,7 +53,12 @@ class VkUserAPI:
 
     def get_user_photos(self, user_id):
         photos = self.vk.photos.get(owner_id=user_id, album_id='profile', extended=1).get('items')
-        return photos
+        if photos:
+            photos.sort(key=lambda x: x['likes']['count'], reverse=True)
+            if len(photos) > 3:
+                photos = photos[:3]
+            photo_urls = [photo['sizes'][-1]['url'] for photo in photos]
+            return photo_urls
 
     def get_user_id(self, user_name):
         if isinstance(user_name, int):
@@ -61,6 +67,7 @@ class VkUserAPI:
             return int(user_name)
         user = self.vk.users.get(user_ids=user_name)
         return user[0].get('id')
+
     def get_search_result(self, city, age, sex, age_delta=5):
         return self.vk.users.search(count=100, hometown=city, age_from=age - age_delta, age_to=age + age_delta, sex=sex)
 
@@ -69,7 +76,7 @@ if __name__ == "__main__":
     from database import load_config
     token = load_config()['VK_GROUP_TOKEN']
     # print("Токен VK:", token)
-    user_id = input("Введите введите ID пользователя: ") or 126875243
+    # user_id = input("Введите введите ID пользователя: ") or 126875243
     # vk_group = VkGroupAPI(token)
     # user_info = vk_group.get_user_info(user_id)
     # if user_info:
@@ -82,6 +89,7 @@ if __name__ == "__main__":
     #     print("Не удалось получить информацию о пользователе.")
 
     vk_user = VkUserAPI(load_config()['VK_USER_TOKEN'])
+    user_id = vk_user.get_user_id(input("Введите введите ID пользователя: ") or 126875243)
     # print(vk_user.get_user_info(user_id))
     # print(vk_user.get_search_result('Москва', 30, 1))
-    print(vk_user.get_user_photos(user_id))
+    pprint(vk_user.get_user_photos(user_id))
