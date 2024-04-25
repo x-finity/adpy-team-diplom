@@ -101,9 +101,9 @@ if __name__ == "__main__":
     vk_user = VkUserAPI(load_config()['VK_USER_TOKEN'])
     # user_id = vk_user.get_user_id(input("Введите введите ID пользователя: ") or 126875243)
     # print(vk_user.get_user_info(user_id))
-    for user_id in vk_user.get_search_result('Москва', 30, 1, count=1):
-        print(vk_user.get_user_info(user_id))
-        for n, photo in enumerate(vk_user.get_user_photos(user_id)):
-            with open(f'.images/{user_id}_{n}.jpg', 'wb') as f:
-                f.write(requests.get(photo).content)
+    # for user_id in vk_user.get_search_result('Москва', 30, 1, count=1):
+    #     print(vk_user.get_user_info(user_id))
+    #     for n, photo in enumerate(vk_user.get_user_photos(user_id)):
+    #         with open(f'.images/{user_id}_{n}.jpg', 'wb') as f:
+    #             f.write(requests.get(photo).content)
     # pprint(vk_user.get_user_photos(user_id))

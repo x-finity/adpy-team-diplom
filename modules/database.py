@@ -2,7 +2,7 @@ import sqlalchemy as sq
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 import sys
 import json
-import vkapi
+import modules.vkapi as vkapi
 import os
 
 def load_config(filename=None):
