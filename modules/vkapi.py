@@ -68,12 +68,16 @@ class VkUserAPI:
         user = self.vk.users.get(user_ids=user_name)
         return user[0].get('id')
 
-    def get_search_result(self, city, age, sex, age_delta=5, offset=0, count=100):
-        result = self.vk.users.search(count=count, offset=offset,
-                                      hometown=city, age_from=age - age_delta, age_to=age + age_delta, sex=sex)
-        for user in result['items']:
-            user_id = user['id']
-            yield user_id
+    def get_search_result(self, city, age, sex, age_delta=5, offset=0, count=1000, max_count=None):
+        while True:
+            result = self.vk.users.search(count=count, offset=offset,
+                                          hometown=city, age_from=age - age_delta, age_to=age + age_delta, sex=sex)
+            for user in result['items']:
+                if user.get('id') is not None:
+                    if max_count is not None and offset >= max_count:
+                        return
+                    yield user['id']
+                    offset += 1
 
 
 if __name__ == "__main__":
@@ -95,5 +99,6 @@ if __name__ == "__main__":
     vk_user = VkUserAPI(load_config()['VK_USER_TOKEN'])
     # user_id = vk_user.get_user_id(input("Введите введите ID пользователя: ") or 126875243)
     # print(vk_user.get_user_info(user_id))
-    pprint(list(vk_user.get_search_result('Москва', 30, 1)))
+    for user_id in vk_user.get_search_result('Москва', 30, 1, max_count=15):
+        print(vk_user.get_user_info(user_id))
     # pprint(vk_user.get_user_photos(user_id))
