@@ -9,7 +9,7 @@ import random
 # session = create_session(config)
 
 
-vk_session = vk_api.VkApi(token="vk1.a.GANkgLMit6kQxEW8nCRllSQrcaAGu6jyxGbRqhOG__KryGP84fROOcGu6k-3UfRWpSF3hBXaVi08ur8Ouce8LWUZHuO6kPzN9CL4UaJ6bDgyXdGz88Ul_FZKon_nDaraPxDT3iC5rCsz93gPyiQ_MZBTIrNfDC75fAMC_-h5I88JzDEnVQ8ZDKeJGrXYZM-pfUOHnVbcWlfavX85EkiA7A")
+vk_session = vk_api.VkApi(token="...")
 longpoll = VkLongPoll(vk_session)
 
 
@@ -18,7 +18,7 @@ class User:
         self.id = id
         self.mode = mode
         self.cash = cash
-        self.disliked_users = []  # Список пользователей, которые не нравятся
+        self.disliked_users = []
 
     def dislike_user(self, user_id):
         self.disliked_users.append(user_id)
@@ -64,27 +64,44 @@ action_key = Keyboard([
 ])
 
 
+# Декоратор для логирования
+def log(func):
+    def wrapper(*args, **kwargs):
+        event = args[0]
+        print(f"Обработка сообщения от пользователя {event.user_id}: {event.text.lower()}")
+        return func(*args, **kwargs)
+    return wrapper
+
 
 
 def sender(user_id, message, keyboard):
     vk_session.method('messages.send', {'user_id': user_id, 'message': message, 'random_id': 0, 'keyboard': json.dumps({'buttons': keyboard})})
 
 
-users = {}
+
+def message_handler(func):
+    def wrapper(event):
+        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+            return func(event)
+    return wrapper
+
+
+
+@message_handler
+def handle_message(event):
+    user_id = event.user_id
+    # Проверяем, есть ли уже пользователь в словаре users, если нет - создаем нового
+    # user = users.get(user_id, User(user_id, None, None))
+    # Обработка различных вариантов текста сообщения
+    if event.text.lower() == "начать":
+        sender(event.user_id, "Привет!", next_key)
+    elif event.text.lower() == "поиск людей":
+        sender(event.user_id, "Выберите действие:", action_key)
+    elif event.text.lower() == "заполнить форму":
+        sender(event.user_id, "Заполните форму!", parameters_key)
+    elif event.text.lower() == "назад":
+        sender(event.user_id, "Выберите действие:", start_key)
+
 
 for event in longpoll.listen():
-    if event.type == VkEventType.MESSAGE_NEW:
-        if event.to_me:
-            user_id = event.user_id
-            user = users.get(user_id, User(user_id, None, None))  # Проверяем, есть ли уже юзер в словаре
-            if event.text.lower() == "начать":
-                sender(event.user_id, "Привет!", next_key)
-            elif event.text.lower() == "поиск людей":
-                # random_user_id = random.choice(list(users.keys())) # Выбираем случайного юзера
-                # random_user = users[random_user_id]
-                # sender(user_id, f"Предложение: {random_user.id}. Нравится?", next_key)
-                sender(event.user_id, "Выберите действие:", action_key)
-            elif event.text.lower() == "заполнить форму":
-                sender(event.user_id, "Заполните форму!", parameters_key)
-            elif event.text.lower() == "назад":
-                sender(event.user_id, "Выберите действие:", start_key)
+    handle_message(event)
