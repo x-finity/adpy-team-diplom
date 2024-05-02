@@ -103,5 +103,6 @@ def handle_message(event):
         sender(event.user_id, "Выберите действие:", start_key)
 
 
+
 for event in longpoll.listen():
     handle_message(event)
