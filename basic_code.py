@@ -62,9 +62,11 @@ search_key = Keyboard([
     [('Назад', 'Красный'), ('', 'Зеленый')],
 ])
 
-action_key = Keyboard([
-    [('Назад', 'Красный'), ('Далее', 'Зеленый'), ('Нравится', 'Зеленый'), ('Не нравится', 'Серый')],
-])
+
+def action_key(is_favorite, is_blocked):
+    keys = [('Назад', 'Красный'), ('Далее', 'Зеленый'), ('💔', 'Зеленый') if is_favorite else ('❤️', 'Серый'),
+            ('✅', 'Зеленый') if is_blocked else ('❌', 'Серый')]
+    return Keyboard([keys])
 
 
 # Декоратор для логирования
@@ -162,12 +164,14 @@ class App:
             self.get_matches_from_search()
 
     def handle_message(self, event):
+        def if_fav_n_block(user_id, offer_id):
+            return [self.db.is_favorite(user_id, offer_id), self.db.is_blocked(user_id, offer_id)]
         # app = App(VkUserAPI(config), AppDB(config))
         # Проверяем, есть ли уже пользователь в словаре users, если нет - создаем нового
         # user = users.get(user_id, User(user_id, None, None))
         # Обработка различных вариантов текста сообщения
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-            print(f'proceccing event from user {event.user_id}, text: {event.text.lower()}')
+            print(f'processing event from user {event.user_id}, text: {event.text.lower()}')
             user_id = str(event.user_id)
             user_message_from = event.text.lower()
             if user_message_from == "начать":
@@ -180,18 +184,34 @@ class App:
                 self.match_id = self.get_matches_from_search()
                 match_info = self.uapi.get_user_info(self.match_id)
                 photos_id = self.uapi.get_user_photos(self.match_id)
-                photo_attach = ','.join([f'{{photo}}{{{self.match_id}}}_{photo_id}' for photo_id in photos_id])
+                if_blocked = self.db.is_blocked(self.current_user, self.match_id)
+                if_favorite = self.db.is_favorite(self.current_user, self.match_id)
+                photo_attach = ','.join([f'photo{self.match_id}_{photo_id}' for photo_id in photos_id])
+                print(photo_attach)
                 self.gapi.sender(user_id,
                                  f"Пользователь https://vk.com/id{str(self.match_id)}\n{match_info['first_name']} {match_info['last_name']}\n"
                                  f"Возраст: {match_info['age']}\nиз города {match_info['city']}",
-                                 action_key, photo_attach)
-            elif user_message_from == "нравится":
+                                 action_key(if_favorite, if_blocked), photos=photo_attach)
+            elif user_message_from == "❤️":
                 self.add_user(self.match_id)
-                self.db.add_matching_to_db(self.current_user, self.match_id, is_favorite=True)
-            elif user_message_from == "не нравится":
+                self.db.add_matching_to_db(self.current_user, self.match_id)
+                self.db.modify_matching_to_favorite(self.current_user, self.match_id)
+                self.gapi.sender(user_id, f"Пользователь {self.match_id} добавлен в избранное", action_key(
+                    *if_fav_n_block(self.current_user, self.match_id)))
+            elif user_message_from == "💔":
+                self.db.modify_matching_to_favorite(self.current_user, self.match_id, is_favorite=False)
+                self.gapi.sender(user_id, f"Пользователь {self.match_id} удален из избранного", action_key(
+                    *if_fav_n_block(self.current_user, self.match_id)))
+            elif user_message_from == "❌":
                 self.add_user(self.match_id)
-                self.db.add_matching_to_db(self.current_user, self.match_id, is_blocked=True)
+                self.db.add_matching_to_db(self.current_user, self.match_id)
                 self.db.modify_matching_to_blacklist(self.current_user, self.match_id)
+                self.gapi.sender(user_id, f"Пользователь {self.match_id} добавлен в черный список", action_key(
+                    *if_fav_n_block(self.current_user, self.match_id)))
+            elif user_message_from == "✅":
+                self.db.modify_matching_to_blacklist(self.current_user, self.match_id, is_blocked=False)
+                self.gapi.sender(user_id, f"Пользователь {self.match_id} удален из черного списка", action_key(
+                    *if_fav_n_block(self.current_user, self.match_id)))
             elif user_message_from == "назад":
                 self.gapi.sender(user_id, "Выберите действие:", start_key)
             else:
