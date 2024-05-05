@@ -36,6 +36,10 @@ class VkGroupAPI:
     def get_longpoll(self):
         return vk_api.longpoll.VkLongPoll(self.vk_session)
 
+    def vk_event_type(self):
+        from vk_api.longpoll import VkEventType
+        return VKEventType.MESSAGE_NEW
+
 
 class VkUserAPI:
 

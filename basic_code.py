@@ -1,19 +1,7 @@
-import vk_api
-from vk_api.keyboard import VkKeyboard, VkKeyboardColor
-from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.utils import get_random_id
 import json
 import random
-from modules.database import AppDB, load_config
-from modules.vkapi import VkUserAPI
 import requests
-
-#
-config = load_config()
-
-
-# vk_session = vk_api.VkApi(token=config['VK_GROUP_TOKEN'])
-# longpoll = VkLongPoll(vk_session)
 
 
 class User:
@@ -36,7 +24,7 @@ def Keyboard(buttons):
     for i in range(len(buttons)):
         for j in range(len(buttons[i])):
             text = buttons[i][j][0]
-            color = {'Зеленый': 'positive', 'Красный': 'negative', 'Серый': 'secondary'}[buttons[i][j][1]]
+            color = {'Зеленый': 'positive', 'Красный': 'negative', 'Серый': 'secondary', 'Синий': 'primary'}[buttons[i][j][1]]
             new_buttons[i][j] = {'action': {'type': 'text', 'payload': '{"button": "1"}', 'label': text},
                                  'color': color}
     return new_buttons
@@ -64,8 +52,8 @@ search_key = Keyboard([
 
 
 def action_key(is_favorite, is_blocked):
-    keys = [('Назад', 'Красный'), ('Далее', 'Зеленый'), ('💔', 'Зеленый') if is_favorite else ('❤️', 'Серый'),
-            ('✅', 'Зеленый') if is_blocked else ('❌', 'Серый')]
+    keys = [('Назад', 'Синий'), ('Далее', 'Зеленый'), ('💔', 'Красный') if is_favorite else ('❤️', 'Зеленый'),
+            ('✅', 'Зеленый') if is_blocked else ('❌', 'Красный')]
     return Keyboard([keys])
 
 
@@ -88,12 +76,12 @@ def log(func):
 #                             'keyboard': json.dumps({'buttons': keyboard})})
 
 
-def message_handler(func):
-    def wrapper(event):
-        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-            return func(event)
-
-    return wrapper
+# def message_handler(func):
+#     def wrapper(event):
+#         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+#             return func(event)
+#
+#     return wrapper
 
 
 #@message_handler
@@ -166,10 +154,8 @@ class App:
     def handle_message(self, event):
         def if_fav_n_block(user_id, offer_id):
             return [self.db.is_favorite(user_id, offer_id), self.db.is_blocked(user_id, offer_id)]
-        # app = App(VkUserAPI(config), AppDB(config))
-        # Проверяем, есть ли уже пользователь в словаре users, если нет - создаем нового
-        # user = users.get(user_id, User(user_id, None, None))
-        # Обработка различных вариантов текста сообщения
+        # if event.type == self.gapi.vk_event_type.MESSAGE_NEW and event.to_me:  ВЫДАЕТ ОШИБКу
+        from vk_api.longpoll import VkEventType
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
             print(f'processing event from user {event.user_id}, text: {event.text.lower()}')
             user_id = str(event.user_id)
@@ -217,6 +203,19 @@ class App:
             else:
                 self.gapi.sender(user_id, f"{user_message_from}", start_key)
 
-# if __name__ == '__main__':
+
+def start(config):
+    app = App(VkUserAPI(config), VkGroupAPI(config), AppDB(config))
+    longpoll = app.gapi.get_longpoll()
+    for event in longpoll.listen():
+        app.handle_message(event)
+
+
+if __name__ == '__main__':
+    from modules.database import load_config, AppDB
+    from modules.vkapi import VkUserAPI, VkGroupAPI
+
+    config = load_config()
+    start(config)
 #     for event in longpoll.listen():
 #         handle_message(event)
