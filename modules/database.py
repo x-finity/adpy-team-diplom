@@ -161,6 +161,13 @@ class AppDB:
         query = self.session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).first()
         if query:
             return query.is_blocked
+        return False
+
+    def is_favorite(self, person_id, offer_id):
+        query = self.session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).first()
+        if query:
+            return query.is_favorite
+        return False
     
 
 if __name__ == "__main__":
