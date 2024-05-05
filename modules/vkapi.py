@@ -1,4 +1,5 @@
 import vk_api
+from vk_api.longpoll import VkLongPoll, VkEventType
 from datetime import date
 import json
 from pprint import pprint
@@ -34,11 +35,10 @@ class VkGroupAPI:
                                                      'random_id': 0, 'keyboard': json.dumps({'buttons': keyboard})})
 
     def get_longpoll(self):
-        return vk_api.longpoll.VkLongPoll(self.vk_session)
+        return VkLongPoll(self.vk_session)
 
-    def vk_event_type(self):
-        from vk_api.longpoll import VkEventType
-        return VKEventType.MESSAGE_NEW
+    def vk_event_type(self, event_type):
+        return True if event_type == VkEventType.MESSAGE_NEW else False
 
 
 class VkUserAPI:

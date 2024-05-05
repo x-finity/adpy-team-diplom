@@ -154,9 +154,7 @@ class App:
     def handle_message(self, event):
         def if_fav_n_block(user_id, offer_id):
             return [self.db.is_favorite(user_id, offer_id), self.db.is_blocked(user_id, offer_id)]
-        # if event.type == self.gapi.vk_event_type.MESSAGE_NEW and event.to_me:  ВЫДАЕТ ОШИБКу
-        from vk_api.longpoll import VkEventType
-        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+        if self.gapi.vk_event_type(event.type) and event.to_me:
             print(f'processing event from user {event.user_id}, text: {event.text.lower()}')
             user_id = str(event.user_id)
             user_message_from = event.text.lower()
@@ -205,7 +203,7 @@ class App:
 
 
 def start(config):
-    app = App(VkUserAPI(config), VkGroupAPI(config), AppDB(config))
+    app = App(VkUserAPI(config['VK_USER_TOKEN']), VkGroupAPI(config['VK_GROUP_TOKEN']), AppDB(config))
     longpoll = app.gapi.get_longpoll()
     for event in longpoll.listen():
         app.handle_message(event)
@@ -217,5 +215,3 @@ if __name__ == '__main__':
 
     config = load_config()
     start(config)
-#     for event in longpoll.listen():
-#         handle_message(event)
