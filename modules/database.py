@@ -4,6 +4,7 @@ import sys
 import json
 import os
 
+
 def load_config(filename=None):
     """Load config file from json"""
     if filename:
@@ -43,6 +44,13 @@ def create_session(config):
     return session
 
 
+def object_as_dict(obj):
+    return {
+        c.key: getattr(obj, c.key)
+        for c in sq.inspect(obj).mapper.column_attrs
+    }
+
+
 Base = declarative_base()
 
 
@@ -55,6 +63,7 @@ class User(Base):
     sex = sq.Column(sq.SmallInteger, unique=False)
     age = sq.Column(sq.SmallInteger, nullable=False)
     city = sq.Column(sq.String(length=40), nullable=False)
+    offset = sq.Column(sq.SmallInteger, unique=False)
 
     photo = relationship('Photo', back_populates='user', cascade="all,delete")
 
@@ -91,69 +100,68 @@ class Photo(Base):
         return f'{self.photo_id, self.user_id, self.url}'
 
 
-def add_user_to_db(session, token, user_id):
-    import modules.vkapi as vkapi
-    user_info = vkapi.VkUserAPI(token).get_user_info(user_id)
-    if user_info:
-        if not session.query(User).filter(User.vk_user_id == user_id).first():
-            session.add(User(vk_user_id=user_id, **user_info))
-            for photo in vkapi.VkUserAPI(token).get_user_photos(user_id):
-                session.add(Photo(user_id=user_id, url=photo))
-            session.commit()
+class AppDB:
+    def __init__(self, config):
+        self.config = config
+        self.session = create_session(config)
 
+    def add_user_to_db(self, user_id, photo_list, **kwargs):
+        if not self.session.query(User).filter(User.vk_user_id == user_id).first():
+            self.session.add(User(vk_user_id=user_id, offset=0, **kwargs))
+            for photo in photo_list:
+                self.session.add(Photo(user_id=user_id, url=photo))
+            self.session.commit()
 
-def del_user_from_db(session, user_id):
-    session.query(Photo).filter(Photo.user_id == user_id).delete()
-    if session.query(User).filter(User.vk_user_id == user_id).first():
-        session.query(User).filter(User.vk_user_id == user_id).delete()
-        session.commit()
+    def del_user_from_db(self, user_id):
+        self.session.query(Photo).filter(Photo.user_id == user_id).delete()
+        self.session.query(UserOffer).filter(UserOffer.person_id == user_id).delete()
+        self.session.query(UserOffer).filter(UserOffer.offer_id == user_id).delete()
+        self.session.query(User).filter(User.vk_user_id == user_id).delete()
+        self.session.commit()
 
+    def add_matching_to_db(self, user_id1, user_id2, is_favorite=False, is_blocked=False):
+        if not self.session.query(UserOffer).filter(UserOffer.person_id == user_id1, UserOffer.offer_id == user_id2).first():
+            self.session.add(UserOffer(person_id=user_id1, offer_id=user_id2, is_favorite=is_favorite, is_blocked=is_blocked))
+            self.session.commit()
 
-def add_matching_to_db(session, user_id1, user_id2, is_favorite=False, is_blocked=False):
-    if not session.query(UserOffer).filter(UserOffer.person_id == user_id1, UserOffer.offer_id == user_id2).first():
-        session.add(UserOffer(person_id=user_id1, offer_id=user_id2, is_favorite=is_favorite, is_blocked=is_blocked))
-        session.commit()
+    def del_matching_from_db(self, user_id1, user_id2):
+        self.session.query(UserOffer).filter(UserOffer.person_id == user_id1, UserOffer.offer_id == user_id2).delete()
+        self.session.commit()
 
+    def get_user_from_db(self, user_id):
+        if self.session.query(User).filter(User.vk_user_id == user_id).first():
+            user_info = object_as_dict(self.session.query(User).filter(User.vk_user_id == user_id).first())
+            photos = self.session.query(Photo).filter(Photo.user_id == user_id).all()
+            user_info['photos'] = [photo.url for photo in photos]
+            return user_info
+        return None
 
-def del_matching_from_db(session, user_id1, user_id2):
-    session.query(UserOffer).filter(UserOffer.person_id == user_id1, UserOffer.offer_id == user_id2).delete()
-    session.commit()
+    def list_users_from_db(self):
+        return [user.vk_user_id for user in self.session.query(User).all()]
 
+    def modify_matching_to_blacklist(self, person_id, offer_id, is_blocked=True):
+        if self.session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).first():
+            (self.session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).
+             update({"is_blocked": is_blocked}))
+            self.session.commit()
 
-def object_as_dict(obj):
-    return {
-        c.key: getattr(obj, c.key)
-        for c in sq.inspect(obj).mapper.column_attrs
-    }
+    def modify_matching_to_favorite(self, person_id, offer_id, is_favorite=True):
+        if self.session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).first():
+            (self.session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).
+             update({"is_favorite": is_favorite}))
+            self.session.commit()
 
+    def modify_offset(self, user_id, amount):
+        old_offset = self.session.query(User).filter(User.vk_user_id == user_id).first().offset
+        if self.session.query(User).filter(User.vk_user_id == user_id).first():
+            (self.session.query(User).filter(User.vk_user_id == user_id).update({"offset": old_offset + amount}))
+            self.session.commit()
 
-def get_user_from_db(session, user_id):
-    if session.query(User).filter(User.vk_user_id == user_id).first():
-        user_info = object_as_dict(session.query(User).filter(User.vk_user_id == user_id).first())
-        photos = session.query(Photo).filter(Photo.user_id == user_id).all()
-        user_info['photos'] = [photo.url for photo in photos]
-        return user_info
-
-
-def modify_matching_to_blacklist(session, person_id, offer_id, is_blocked=True):
-    if session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).first():
-        (session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).
-         update({"is_blocked": is_blocked}))
-        session.commit()
-
-
-def modify_matching_to_favorite(session, person_id, offer_id, is_favorite=True):
-    if session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).first():
-        (session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).
-         update({"is_favorite": is_favorite}))
-        session.commit()
-
-
-def is_blocked(session, person_id, offer_id):
-    query = session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).first()
-    if query:
-        return query.is_blocked
-
+    def is_blocked(self, person_id, offer_id):
+        query = self.session.query(UserOffer).filter(UserOffer.person_id == person_id, UserOffer.offer_id == offer_id).first()
+        if query:
+            return query.is_blocked
+    
 
 if __name__ == "__main__":
     pass

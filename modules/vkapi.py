@@ -1,5 +1,6 @@
 import vk_api
 from datetime import date
+import json
 from pprint import pprint
 
 
@@ -17,15 +18,34 @@ def get_age(bdate):
 
 class VkGroupAPI:
     def __init__(self, token):
-        self.token = token
+        if isinstance(token, dict):
+            self.token = token['VK_GROUP_TOKEN'][:]
+        else:
+            self.token = token[:]
         self.vk_session = vk_api.VkApi(token=token)
-        self.vk = self.vk_session.get_api()
+
+    def sender(self, user_id, message, keyboard, photos=None):
+        if photos:
+            self.vk_session.method('messages.send', {'user_id': user_id, 'message': message,
+                                                     'random_id': 0, 'keyboard': json.dumps({'buttons': keyboard}),
+                                                     'attachment': photos})
+        else:
+            self.vk_session.method('messages.send', {'user_id': user_id, 'message': message,
+                                                     'random_id': 0, 'keyboard': json.dumps({'buttons': keyboard})})
+
+    def get_longpoll(self):
+        return vk_api.longpoll.VkLongPoll(self.vk_session)
 
 
 class VkUserAPI:
 
     def __init__(self, token):
-        self.token = token
+        # print(f'start {token}')
+        if isinstance(token, dict):
+            self.token = token['VK_USER_TOKEN'][:]
+        else:
+            self.token = token[:]
+        # print(self.token)
         self.vk_session = vk_api.VkApi(token=token)
         self.vk = self.vk_session.get_api()
 
@@ -51,14 +71,16 @@ class VkUserAPI:
             print("Ошибка при получении информации о пользователе:", e)
             return None
 
-    def get_user_photos(self, user_id):
+    def get_user_photos(self, user_id, flag=None):
         photos = self.vk.photos.get(owner_id=user_id, album_id='profile', extended=1).get('items')
+        if flag is not None:
+            return photos
         if photos:
             photos.sort(key=lambda x: x['likes']['count'], reverse=True)
             if len(photos) > 3:
                 photos = photos[:3]
-            photo_urls = [photo['sizes'][-1]['url'] for photo in photos]
-            return photo_urls
+            photo_id = [photo['id'] for photo in photos]
+            return photo_id
 
     def get_user_id(self, user_name):
         if isinstance(user_name, int):
@@ -68,17 +90,23 @@ class VkUserAPI:
         user = self.vk.users.get(user_ids=user_name)
         return user[0].get('id')
 
-    def get_search_result(self, city, age, sex, age_delta=5, offset=0, count=10, user_id=None, has_photo=True, max_count=None):
-        from modules.database import is_blocked
-        from basic_code import session
+    def get_search_chunk(self, city, age, sex, age_delta=None, offset=0, count=1, has_photo=True):
+        if age_delta is None:
+            result = self.vk.users.search(count=count, offset=offset,
+                                          hometown=city, has_photo=has_photo, sex=sex)
+        else:
+            result = self.vk.users.search(count=count, offset=offset,
+                                          hometown=city, has_photo=has_photo, age_from=age - age_delta,
+                                          age_to=age + age_delta, sex=sex)
+        return [user.get('id') for user in result['items']]
+
+    def get_search_result(self, city, age, sex, age_delta=5, offset=0, count=10, has_photo=True, max_count=10):
         while True:
             result = self.vk.users.search(count=count, offset=offset,
                                           hometown=city, has_photo=has_photo, age_from=age - age_delta,
                                           age_to=age + age_delta, sex=sex)
             for user in result['items']:
                 if user.get('id') is not None:
-                    if is_blocked(session, user_id, user['id']):
-                        continue
                     if max_count is not None and offset >= max_count:
                         return
                     yield user['id']
