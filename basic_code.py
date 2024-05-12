@@ -1,7 +1,12 @@
+import logging
 from vk_api.utils import get_random_id
 import json
 import random
 import requests
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class User:
@@ -13,6 +18,7 @@ class User:
 
     def dislike_user(self, user_id):
         self.disliked_users.append(user_id)
+        logger.info(f"Пользователю {self.id} не понравился пользователь {user_id}")
 
 
 def Keyboard(buttons):
