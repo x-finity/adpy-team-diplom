@@ -6,3 +6,4 @@
 /config.json
 test_function.py
 *.env
+*.log
