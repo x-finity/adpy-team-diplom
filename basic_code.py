@@ -1,24 +1,10 @@
 import logging
+from functools import wraps
 from vk_api.utils import get_random_id
 import json
 import random
 import requests
-
-# Настройка логирования
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-
-class User:
-    def __init__(self, id, mode, cash):
-        self.id = id
-        self.mode = mode
-        self.cash = cash
-        self.disliked_users = []
-
-    def dislike_user(self, user_id):
-        self.disliked_users.append(user_id)
-        logger.info(f"Пользователю {self.id} не понравился пользователь {user_id}")
+from datetime import datetime
 
 
 def Keyboard(buttons):
@@ -64,33 +50,16 @@ def action_key(is_favorite, is_blocked):
 
 
 # Декоратор для логирования
-def log(func):
+def log(func, file='vkinder.log'):
+    @wraps(func)
     def wrapper(*args, **kwargs):
-        event = args[0]
-        print(f"Обработка сообщения от пользователя {event.user_id}: {event.text.lower()}")
+        event = args[1]
+        if event.type == 4 and event.to_me:
+            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: id{event.user_id}: {event.text.lower()}")
+            with open(file, 'a', encoding='utf-8') as f:
+                f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: id{event.user_id}: {event.text.lower()}\n")
         return func(*args, **kwargs)
-
     return wrapper
-
-
-# def sender(user_id, message, keyboard, photos=None):
-#     if photos:
-#         vk_session.method('messages.send', {'user_id': user_id, 'message': message, 'random_id': 0,
-#                             'keyboard': json.dumps({'buttons': keyboard}), 'attachment': photos})
-#     else:
-#         vk_session.method('messages.send', {'user_id': user_id, 'message': message, 'random_id': 0,
-#                             'keyboard': json.dumps({'buttons': keyboard})})
-
-
-# def message_handler(func):
-#     def wrapper(event):
-#         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-#             return func(event)
-#
-#     return wrapper
-
-
-#@message_handler
 
 
 class App:
@@ -133,10 +102,9 @@ class App:
         def invert_sex(sex):
             if sex == 1:
                 return 2
-            elif sex == 2:
+            if sex == 2:
                 return 1
-            else:
-                return sex
+            return sex
 
         if not self.current_user:
             return False
@@ -157,11 +125,12 @@ class App:
         else:
             self.get_matches_from_search()
 
+    @log
     def handle_message(self, event):
         def if_fav_n_block(user_id, offer_id):
             return [self.db.is_favorite(user_id, offer_id), self.db.is_blocked(user_id, offer_id)]
         if self.gapi.vk_event_type(event.type) and event.to_me:
-            print(f'processing event from user {event.user_id}, text: {event.text.lower()}')
+            # print(f'processing event from user {event.user_id}, text: {event.text.lower()}')
             user_id = str(event.user_id)
             user_message_from = event.text.lower()
             if user_message_from == "начать":
@@ -177,7 +146,7 @@ class App:
                 if_blocked = self.db.is_blocked(self.current_user, self.match_id)
                 if_favorite = self.db.is_favorite(self.current_user, self.match_id)
                 photo_attach = ','.join([f'photo{self.match_id}_{photo_id}' for photo_id in photos_id])
-                print(photo_attach)
+                # print(photo_attach)
                 self.gapi.sender(user_id,
                                  f"Пользователь https://vk.com/id{str(self.match_id)}\n{match_info['first_name']} {match_info['last_name']}\n"
                                  f"Возраст: {match_info['age']}\nиз города {match_info['city']}",
