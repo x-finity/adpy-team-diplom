@@ -69,6 +69,7 @@ class App:
         self.match_id = None
         self.db = db
         self.current_user = None
+        self.status = 0
 
     def set_current_user(self, user_id_or_name):
         try:
@@ -134,11 +135,13 @@ class App:
             user_id = str(event.user_id)
             user_message_from = event.text.lower()
             if user_message_from == "начать":
+                self.status = 0
                 self.add_user(user_id)
                 user_info = self.db.get_user_from_db(user_id)
                 self.gapi.sender(user_id, f"Привет, {user_info['first_name']}!\n"
                                           f"Нажми кнопку \"Поиск людей\" для начала поиска пары", next_key)
             elif user_message_from == "поиск людей" or user_message_from == "далее":
+                self.status = 1
                 self.set_current_user(user_id)
                 self.match_id = self.get_matches_from_search()
                 match_info = self.uapi.get_user_info(self.match_id)
@@ -174,7 +177,11 @@ class App:
             elif user_message_from == "назад":
                 self.gapi.sender(user_id, "Выберите действие:", start_key)
             else:
-                self.gapi.sender(user_id, f"{user_message_from}", start_key)
+                if self.status == 1:
+                    self.gapi.sender(user_id, f"Команда не распознана: {user_message_from}", action_key(
+                    *if_fav_n_block(self.current_user, self.match_id)))
+                else:
+                    self.gapi.sender(user_id, f"Команда не распознана: {user_message_from}", start_key)
 
 
 def start(config):
