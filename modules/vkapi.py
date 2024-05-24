@@ -77,6 +77,8 @@ class VkUserAPI:
 
     def get_user_photos(self, user_id, flag=None):
         photos = self.vk.photos.get(owner_id=user_id, album_id='profile', extended=1).get('items')
+        if not photos:
+            return [1]
         if flag is not None:
             return photos
         if photos:
@@ -89,7 +91,7 @@ class VkUserAPI:
     def get_user_id(self, user_name):
         if isinstance(user_name, int):
             return user_name
-        elif user_name.isdigit():
+        if user_name.isdigit():
             return int(user_name)
         user = self.vk.users.get(user_ids=user_name)
         return user[0].get('id')

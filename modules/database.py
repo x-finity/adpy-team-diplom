@@ -9,15 +9,16 @@ def load_config(filename=None):
     """Load config file from json"""
     if filename:
         return json.load(open(filename))
-    else:
-        config = {key: value for key, value in dict(os.environ).items() if key.startswith('PG_')}
-        config.update({'VK_GROUP_TOKEN': os.environ.get('VK_GROUP_TOKEN')})
-        config.update({'VK_USER_TOKEN': os.environ.get('VK_USER_TOKEN')})
-        return config
+    config = {key: value for key, value in dict(os.environ).items() if key.startswith('PG_')}
+    config.update({'VK_GROUP_TOKEN': os.environ.get('VK_GROUP_TOKEN')})
+    config.update({'VK_USER_TOKEN': os.environ.get('VK_USER_TOKEN')})
+    return config
 
 
 def create_dsn(config):
-    """Create DSN from config"""
+    """Create DSN from config
+    use PG_<prefix> (prefix like: database, drivername, host, port, username, password) as keys in environment
+    to define database parameters"""
     db_config = {key[3:].lower(): value for key, value in config.items() if key.startswith('PG_')}
     db_config.setdefault('port', 5432)
     db_config.setdefault('host', 'localhost')
